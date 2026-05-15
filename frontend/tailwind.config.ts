@@ -10,12 +10,17 @@ export default {
   theme: {
     extend: {
       colors: {
-        bg:      'var(--color-bg)',
-        surface: 'var(--color-surface)',
-        border:  'var(--color-border)',
-        text:    'var(--color-text)',
-        muted:   'var(--color-muted)',
-        // accent: TBD Phase 2
+        bg:         'var(--color-bg)',
+        surface:    'var(--color-surface)',
+        border:     'var(--color-border)',
+        text:       'var(--color-text)',
+        muted:      'var(--color-muted)',
+        accent:     'var(--color-accent)',
+        'accent-dim': 'var(--color-accent-dim)',
+      },
+      fontFamily: {
+        serif: ['"DM Serif Display"', 'Georgia', 'serif'],
+        sans:  ['"DM Sans"', 'system-ui', 'sans-serif'],
       },
     },
   },

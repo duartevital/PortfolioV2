@@ -5,7 +5,8 @@
   --color-border:   #232323;
   --color-text:     #e8e8e8;
   --color-muted:    #6b6b6b;
-  /* --color-accent: TBD in Phase 2 */
+  --color-accent:   #6B8F71;
+  --color-accent-dim: #4a6450;
 }
 
 *,
@@ -19,6 +20,7 @@
 html {
   background-color: var(--color-bg);
   color: var(--color-text);
+  font-family: 'DM Sans', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
