@@ -1,7 +1,6 @@
 name: Backend — CI
 
-# Render deploys automatically via its GitHub integration.
-# This workflow just verifies the build so broken code never reaches Render.
+# Verifies the build on every push so broken code is caught early.
 
 on:
   push:

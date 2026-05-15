@@ -1,7 +1,6 @@
 name: Frontend — CI
 
-# Vercel deploys automatically via its GitHub integration.
-# This workflow just runs the type check so broken code never reaches Vercel.
+# Runs the type check on every push so broken code is caught early.
 
 on:
   push:

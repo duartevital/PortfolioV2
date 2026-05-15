@@ -15,10 +15,11 @@ Personal photography portfolio ("Vital Photography") — a dark, moody, masonry-
 ## Monorepo Structure
 
 ```
-/frontend     Nuxt 4 + Vue 3 + TypeScript + Tailwind CSS
-/backend      ASP.NET Core 8 Web API (C#)
-CLAUDE.md     This file
-render.yaml   Render service definition
+/frontend          Nuxt 4 + Vue 3 + TypeScript + Tailwind CSS
+/backend           ASP.NET Core 8 Web API (C#)
+docker-compose.yml Runs both services with one command
+CLAUDE.md          This file
+.env.example       Secret template (copy to .env, never commit)
 .gitignore
 ```
 
@@ -51,8 +52,13 @@ npm run preview    # preview production build
 Create `frontend/.env` (never commit):
 
 ```
-NUXT_PUBLIC_API_BASE_URL=http://localhost:5000   # backend API base
+NUXT_PUBLIC_API_BASE_URL=http://localhost:5000   # backend API base (browser-side)
 NUXT_PUBLIC_SITE_URL=http://localhost:3000       # canonical site URL (for SEO/sitemap)
+```
+
+When running in Docker, also set:
+```
+NUXT_API_BASE_URL=http://backend:8080   # backend API base (SSR, internal Docker network)
 ```
 
 ---
@@ -140,49 +146,32 @@ Local dev uses SQLite with no extra credentials needed.
 
 ## Deployment
 
-Two services. That's it.
+One command:
 
-| | Service | Cost |
-|---|---|---|
-| Frontend | Vercel | Free |
-| Backend + DB + Photos | Render | $0.25/month (1 GB persistent disk) |
+```bash
+docker compose up --build
+```
 
-Everything — the .NET API, SQLite database, and uploaded photos — runs on a single Render web service backed by a persistent disk. The disk costs $0.25/month and survives redeploys indefinitely.
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:5000
+- Data (SQLite + photos) persists in `./data/` on the host
 
-### 1 — Render (backend + SQLite + photos)
+### First-time setup
 
-1. Push this repo to GitHub
-2. render.com → New → Web Service → connect your repo
-3. Set **Root Directory** to `backend` (Render will find `backend/Dockerfile` automatically)
-4. In the Render dashboard set these three **secret** environment variables (never commit real values):
+1. Copy `.env.example` to `.env` and fill in the two secrets:
+   - `Jwt__Secret` — any random string ≥ 32 chars
+   - `Admin__PasswordHash` — bcrypt hash (cost 11) of your admin password; generate at bcrypt-generator.com
 
-| Key | Value |
-|---|---|
-| `Jwt__Secret` | A random string ≥ 32 chars |
-| `Admin__PasswordHash` | Bcrypt hash (cost 11) of your chosen admin password — use bcrypt-generator.com |
-| `Cors__AllowedOrigins` | Your Vercel URL, e.g. `https://vital-photography.vercel.app` |
+2. Run `docker compose up --build`
 
-5. Deploy — Render auto-deploys on every push to `main` that touches `backend/`
+### Self-hosting on a server
 
-The `render.yaml` at the repo root pre-configures everything else (persistent disk, non-secret env vars).
-
-### 2 — Vercel (frontend)
-
-1. vercel.com → New Project → Import your repo → set **Root Directory** to `frontend`
-2. Add environment variables in Vercel dashboard:
-
-| Key | Value |
-|---|---|
-| `NUXT_PUBLIC_API_BASE_URL` | Your Render API URL, e.g. `https://vital-photography-api.onrender.com` |
-| `NUXT_PUBLIC_SITE_URL` | Your Vercel deployment URL |
-
-3. Deploy — Vercel auto-deploys on every push to `main` that touches `frontend/`
+Same steps, but on the server set `Cors__AllowedOrigins` in the backend environment to your domain, and update `NUXT_PUBLIC_API_BASE_URL` in the frontend environment to the backend's public URL.
 
 ### Image pipeline
 
 - Upload → `ImageService` → WebP 85% quality → 400 px thumbnail + 1800 px display
-- Dev: saved to `wwwroot/uploads/`, served by static files middleware
-- Prod: saved to `/data/uploads/` on the Render persistent disk, served by the same middleware
+- Both dev and prod: saved to `./data/uploads/` (or `/data/uploads/` inside the container), served by the static files middleware
 
 ### Caching strategy
 

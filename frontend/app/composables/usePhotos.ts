@@ -2,7 +2,9 @@ import type { Photo, PhotoCategory } from '~/types/photo'
 
 export function usePhotos(category?: Ref<PhotoCategory | 'all'>) {
   const config = useRuntimeConfig()
-  const baseUrl = config.public.apiBaseUrl || 'http://localhost:5000'
+  const baseUrl = import.meta.server
+    ? (config.apiBaseUrl || config.public.apiBaseUrl || 'http://localhost:5000')
+    : (config.public.apiBaseUrl || 'http://localhost:5000')
 
   const url = computed(() => {
     const cat = category?.value

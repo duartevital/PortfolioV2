@@ -10,7 +10,7 @@ FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
 COPY --from=build /app/publish .
 
-# /data is mounted as a Render persistent disk — holds SQLite db + uploaded photos
+# /data holds the SQLite db and uploaded photos — mount a volume here in production
 RUN mkdir -p /data/uploads
 ENV ConnectionStrings__DefaultConnection="Data Source=/data/vital-photography.db"
 ENV ASPNETCORE_URLS="http://+:8080"

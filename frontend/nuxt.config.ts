@@ -15,10 +15,10 @@ export default defineNuxtConfig({
   css: ['~/assets/css/tokens.css'],
 
   runtimeConfig: {
+    apiBaseUrl: '',  // NUXT_API_BASE_URL — server-side only (in Docker: http://backend:8080)
     public: {
-      apiBaseUrl: '',   // NUXT_PUBLIC_API_BASE_URL
-      blobBaseUrl: '',  // NUXT_PUBLIC_BLOB_BASE_URL
-      siteUrl: '',      // NUXT_PUBLIC_SITE_URL — required for sitemap + OG absolute URLs
+      apiBaseUrl: '',  // NUXT_PUBLIC_API_BASE_URL — browser-side
+      siteUrl: '',     // NUXT_PUBLIC_SITE_URL — sitemap + OG absolute URLs
     },
   },
 

@@ -1,0 +1,25 @@
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "5000:8080"
+    volumes:
+      - ./data:/data
+    environment:
+      - Jwt__Issuer=vital-photography
+      - Jwt__Audience=vital-photography-admin
+      - Jwt__ExpiryMinutes=60
+      - Cors__AllowedOrigins=http://localhost:3000
+    env_file:
+      - .env
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NUXT_API_BASE_URL=http://backend:8080
+      - NUXT_PUBLIC_API_BASE_URL=http://localhost:5000
+      - NUXT_PUBLIC_SITE_URL=http://localhost:3000
+    depends_on:
+      - backend
