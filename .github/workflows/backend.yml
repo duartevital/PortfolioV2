@@ -1,4 +1,4 @@
-name: Backend — Build & Deploy
+name: Backend — CI & Deploy
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
     paths: [backend/**]
 
 jobs:
-  build-deploy:
+  build:
     runs-on: ubuntu-latest
 
     steps:
@@ -19,21 +19,21 @@ jobs:
         with:
           dotnet-version: 8.x
 
-      - name: Restore
-        run: dotnet restore backend/VitalPhotography.sln
+      - run: dotnet restore backend/VitalPhotography.sln
+      - run: dotnet build   backend/VitalPhotography.sln --no-restore -c Release
 
-      - name: Build
-        run: dotnet build backend/VitalPhotography.sln --no-restore -c Release
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
 
-      - name: Publish
-        run: >
-          dotnet publish backend/VitalPhotography.Api/VitalPhotography.Api.csproj
-          --no-build -c Release -o publish/
+    steps:
+      - uses: actions/checkout@v4
 
-      - name: Deploy to Azure App Service
-        if: github.ref == 'refs/heads/main'
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name:       ${{ secrets.AZURE_APP_SERVICE_NAME }}
-          publish-profile: ${{ secrets.AZURE_APP_SERVICE_PUBLISH_PROFILE }}
-          package:        publish/
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy to Fly.io
+        run: flyctl deploy --remote-only
+        working-directory: backend
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

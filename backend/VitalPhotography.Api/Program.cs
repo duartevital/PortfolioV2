@@ -44,8 +44,10 @@ builder.Services.AddControllers();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<ImageService>();
 
-// Storage — Azure Blob in prod, local filesystem in dev
-if (!string.IsNullOrEmpty(builder.Configuration["AzureBlob:ConnectionString"]))
+// Storage — R2 > Azure Blob > local filesystem (first match wins)
+if (!string.IsNullOrEmpty(builder.Configuration["CloudflareR2:AccountId"]))
+    builder.Services.AddScoped<IStorageService, CloudflareR2StorageService>();
+else if (!string.IsNullOrEmpty(builder.Configuration["AzureBlob:ConnectionString"]))
     builder.Services.AddScoped<IStorageService, AzureBlobStorageService>();
 else
     builder.Services.AddScoped<IStorageService, LocalStorageService>();

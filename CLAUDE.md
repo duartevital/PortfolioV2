@@ -138,53 +138,89 @@ Local dev uses SQLite; no Azure credentials needed until Phase 5.
 
 ---
 
-## Deployment Notes (Phase 5)
+## Deployment (free stack)
 
-### GitHub Secrets required
+| Layer | Service | Cost |
+|---|---|---|
+| Frontend | Vercel | Free |
+| Backend API | Fly.io | Free tier (shared VM, 256 MB) |
+| Database | SQLite on Fly volume | Free (1 GB volume) |
+| Image storage + CDN | Cloudflare R2 | Free (10 GB, no egress fees) |
 
-| Secret | Description |
-|---|---|
-| `API_BASE_URL` | Deployed API URL, e.g. `https://vitalphoto-prod-api.azurewebsites.net` |
-| `BLOB_BASE_URL` | CDN base URL for images |
-| `SITE_URL` | Public site URL for Open Graph + sitemap |
-| `AZURE_STATIC_WEB_APPS_TOKEN` | Deployment token from Azure Static Web Apps |
-| `AZURE_APP_SERVICE_NAME` | App Service resource name |
-| `AZURE_APP_SERVICE_PUBLISH_PROFILE` | Downloaded from Azure portal → App Service → Publish profile |
+### 1 — Cloudflare R2 (image storage)
 
-### Provision from scratch
+1. Create a free account at cloudflare.com
+2. R2 → Create bucket → name it `photos` → enable public access
+3. R2 → Manage API tokens → Create token (Object Read & Write on `photos` bucket)
+4. Note: **Account ID**, **Access Key ID**, **Secret Access Key**
+5. R2 → `photos` bucket → Settings → copy the **Public bucket URL** (looks like `https://pub-xxx.r2.dev`)
+
+### 2 — Fly.io (backend + database)
 
 ```bash
-export SQL_PASSWORD="<strong-password>"
-export JWT_SECRET="<32+-char-random-string>"
-export ADMIN_HASH="<bcrypt hash>"   # generate: dotnet script or online bcrypt tool
-bash infra/provision.sh
+# Install CLI (Windows)
+winget install flyio.flyctl
+
+# Login
+fly auth login
+
+# Launch app (run once from /backend — accepts fly.toml, skip deploy for now)
+cd backend
+fly launch --no-deploy
+
+# Create persistent volume for SQLite
+fly volumes create vital_photography_data --size 1 --region mad
+
+# Set all secrets (replace placeholder values)
+fly secrets set \
+  Jwt__Secret="a-random-string-at-least-32-chars-long" \
+  Admin__PasswordHash="<bcrypt hash of your chosen admin password>" \
+  CloudflareR2__AccountId="<from step 1>" \
+  CloudflareR2__AccessKeyId="<from step 1>" \
+  CloudflareR2__SecretAccessKey="<from step 1>" \
+  CloudflareR2__BucketName="photos" \
+  CloudflareR2__PublicUrl="<public bucket URL from step 1>" \
+  Cors__AllowedOrigins="https://your-app.vercel.app"
+
+# First deploy
+fly deploy
 ```
 
-This deploys via `infra/bicep/main.bicep` and provisions:
-- Azure Storage Account + `photos` Blob container (public read)
-- Azure CDN (Standard Microsoft) with 1-year cache rule for image extensions
-- Azure SQL Server + Basic database
-- Azure App Service (Linux, .NET 8) with all env vars pre-wired
-- Azure Static Web App (Free tier) for the Nuxt SSG output
+To generate the `Admin__PasswordHash`, paste your chosen password into any online bcrypt generator (e.g. bcrypt-generator.com) with cost 11.
+
+### 3 — Vercel (frontend)
+
+1. Push this repo to GitHub
+2. vercel.com → New Project → Import your repo → set **Root Directory** to `frontend`
+3. Add environment variables in Vercel dashboard:
+   - `NUXT_PUBLIC_API_BASE_URL` → your Fly.io API URL (e.g. `https://vital-photography-api.fly.dev`)
+   - `NUXT_PUBLIC_BLOB_BASE_URL` → your R2 public bucket URL
+   - `NUXT_PUBLIC_SITE_URL` → your Vercel deployment URL
+4. Deploy — Vercel auto-deploys on every push to `main` from here on
+
+### 4 — GitHub Secret for CI
+
+Add one secret to your GitHub repo (Settings → Secrets → Actions):
+
+| Secret | Value |
+|---|---|
+| `FLY_API_TOKEN` | Run `fly tokens create deploy` and paste the output |
+
+After this, every push to `main` that touches `backend/` triggers an automatic Fly.io redeploy via `.github/workflows/backend.yml`.
 
 ### Image pipeline
 
 - Upload → `ImageService` → WebP 85% quality → 400 px thumbnail + 1800 px display
-- Dev: saved to `wwwroot/uploads/` with `Cache-Control: immutable` served by static files middleware
-- Prod: uploaded to Azure Blob → served via CDN with 1-year cache + `immutable`
+- Dev: saved to `wwwroot/uploads/` served by static files middleware with immutable headers
+- Prod: uploaded to Cloudflare R2 → served via R2 public URL with `Cache-Control: immutable`
 
 ### Caching strategy
 
 | Layer | Cache-Control |
 |---|---|
-| Image files (blob/CDN) | `public, max-age=31536000, immutable` |
+| Image files (R2/CDN) | `public, max-age=31536000, immutable` |
 | `GET /api/v1/photos` | `public, max-age=60, stale-while-revalidate=300` |
 | Admin routes | No cache (auth-gated) |
-
-### CI/CD
-
-- `.github/workflows/frontend.yml` — on push to `main` touching `frontend/`: typecheck → build → deploy to Static Web Apps
-- `.github/workflows/backend.yml` — on push to `main` touching `backend/`: restore → build → publish → deploy to App Service
 
 ---
 
