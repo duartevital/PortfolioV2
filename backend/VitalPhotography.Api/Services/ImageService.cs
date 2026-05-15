@@ -1,19 +1,19 @@
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Processing;
-using SixLabors.ImageSharp.Formats.Jpeg;
+using SixLabors.ImageSharp.Formats.Webp;
 
 namespace VitalPhotography.Api.Services;
 
 public class ImageService
 {
-    private static readonly JpegEncoder Encoder = new() { Quality = 85 };
+    private static readonly WebpEncoder Encoder = new() { Quality = 85 };
 
     public async Task<(Stream Thumbnail, Stream Display)> ResizeAsync(Stream source, CancellationToken ct = default)
     {
         source.Position = 0;
         using var image = await Image.LoadAsync(source, ct);
 
-        var thumb = new MemoryStream();
+        var thumb   = new MemoryStream();
         var display = new MemoryStream();
 
         using (var clone = image.Clone(x => x.Resize(new ResizeOptions
@@ -30,7 +30,7 @@ public class ImageService
         })))
             await clone.SaveAsync(display, Encoder, ct);
 
-        thumb.Position = 0;
+        thumb.Position   = 0;
         display.Position = 0;
         return (thumb, display);
     }

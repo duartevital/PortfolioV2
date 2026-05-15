@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import type { Photo, PhotoCategory } from '~/types/photo'
 
+useSeoMeta({
+  title: 'Gallery',
+  description: 'Photography portfolio by Duarte Vital — landscape, nature, street, and urban.',
+  ogTitle: 'Vital Photography',
+  ogDescription: 'Photography portfolio — landscape, nature, street, and urban.',
+})
+
 type FilterValue = 'all' | PhotoCategory
 
 const activeFilter = ref<FilterValue>('all')

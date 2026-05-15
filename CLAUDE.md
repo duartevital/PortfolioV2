@@ -131,20 +131,60 @@ Local dev uses SQLite; no Azure credentials needed until Phase 5.
 | Phase | Scope | Status |
 |---|---|---|
 | 1 | Project skeleton, scaffolding, CLAUDE.md, .gitignore | ✅ Done |
-| 2 | Public gallery — masonry, filtering, lightbox, lazy loading | Pending |
-| 3 | Admin panel — upload, metadata, resize, reorder, delete | Pending |
-| 4 | Contact & About pages, site-wide nav/footer | Pending |
-| 5 | WebP on upload, CDN headers, SEO, Azure deployment | Pending |
+| 2 | Public gallery — masonry, filtering, lightbox, lazy loading | ✅ Done |
+| 3 | Admin panel — upload, metadata, resize, reorder, delete | ✅ Done |
+| 4 | Contact & About pages, site-wide nav/footer | ✅ Done |
+| 5 | WebP on upload, CDN headers, SEO, Azure deployment | ✅ Done |
 
 ---
 
 ## Deployment Notes (Phase 5)
 
-- Frontend: Azure Static Web Apps (or Vercel/Netlify) pointing at `/frontend/.output/public`
-- Backend: Azure App Service (Linux container) or Azure Container Apps
-- Database: Azure SQL Basic tier
-- Images: Azure Blob Storage, served via CDN with `Cache-Control: public, max-age=31536000`
-- CI/CD: GitHub Actions workflows live in `.github/workflows/`
+### GitHub Secrets required
+
+| Secret | Description |
+|---|---|
+| `API_BASE_URL` | Deployed API URL, e.g. `https://vitalphoto-prod-api.azurewebsites.net` |
+| `BLOB_BASE_URL` | CDN base URL for images |
+| `SITE_URL` | Public site URL for Open Graph + sitemap |
+| `AZURE_STATIC_WEB_APPS_TOKEN` | Deployment token from Azure Static Web Apps |
+| `AZURE_APP_SERVICE_NAME` | App Service resource name |
+| `AZURE_APP_SERVICE_PUBLISH_PROFILE` | Downloaded from Azure portal → App Service → Publish profile |
+
+### Provision from scratch
+
+```bash
+export SQL_PASSWORD="<strong-password>"
+export JWT_SECRET="<32+-char-random-string>"
+export ADMIN_HASH="<bcrypt hash>"   # generate: dotnet script or online bcrypt tool
+bash infra/provision.sh
+```
+
+This deploys via `infra/bicep/main.bicep` and provisions:
+- Azure Storage Account + `photos` Blob container (public read)
+- Azure CDN (Standard Microsoft) with 1-year cache rule for image extensions
+- Azure SQL Server + Basic database
+- Azure App Service (Linux, .NET 8) with all env vars pre-wired
+- Azure Static Web App (Free tier) for the Nuxt SSG output
+
+### Image pipeline
+
+- Upload → `ImageService` → WebP 85% quality → 400 px thumbnail + 1800 px display
+- Dev: saved to `wwwroot/uploads/` with `Cache-Control: immutable` served by static files middleware
+- Prod: uploaded to Azure Blob → served via CDN with 1-year cache + `immutable`
+
+### Caching strategy
+
+| Layer | Cache-Control |
+|---|---|
+| Image files (blob/CDN) | `public, max-age=31536000, immutable` |
+| `GET /api/v1/photos` | `public, max-age=60, stale-while-revalidate=300` |
+| Admin routes | No cache (auth-gated) |
+
+### CI/CD
+
+- `.github/workflows/frontend.yml` — on push to `main` touching `frontend/`: typecheck → build → deploy to Static Web Apps
+- `.github/workflows/backend.yml` — on push to `main` touching `backend/`: restore → build → publish → deploy to App Service
 
 ---
 
@@ -158,7 +198,8 @@ Defined in `frontend/assets/css/tokens.css` and consumed via Tailwind's `theme.e
 --color-border:    #232323   subtle dividers
 --color-text:      #e8e8e8   primary text
 --color-muted:     #6b6b6b   secondary / metadata text
---color-accent:    TBD       chosen in Phase 2
+--color-accent:    #6B8F71   muted sage green (chosen Phase 2)
+--color-accent-dim: #4a6450  darker accent for hover states
 ```
 
 ---

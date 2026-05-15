@@ -1,3 +1,12 @@
+<script setup lang="ts">
+useSeoMeta({
+  title: 'About',
+  description: 'Hobbyist photographer based in Portugal, working across landscape, nature, and street photography.',
+  ogTitle: 'About · Vital Photography',
+  ogDescription: 'Hobbyist photographer based in Portugal, working across landscape, nature, and street photography.',
+})
+</script>
+
 <template>
   <div class="max-w-5xl mx-auto px-6 py-16 md:py-24">
 

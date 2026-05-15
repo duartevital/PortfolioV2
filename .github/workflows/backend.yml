@@ -1,0 +1,39 @@
+name: Backend — Build & Deploy
+
+on:
+  push:
+    branches: [main]
+    paths: [backend/**]
+  pull_request:
+    branches: [main]
+    paths: [backend/**]
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.x
+
+      - name: Restore
+        run: dotnet restore backend/VitalPhotography.sln
+
+      - name: Build
+        run: dotnet build backend/VitalPhotography.sln --no-restore -c Release
+
+      - name: Publish
+        run: >
+          dotnet publish backend/VitalPhotography.Api/VitalPhotography.Api.csproj
+          --no-build -c Release -o publish/
+
+      - name: Deploy to Azure App Service
+        if: github.ref == 'refs/heads/main'
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name:       ${{ secrets.AZURE_APP_SERVICE_NAME }}
+          publish-profile: ${{ secrets.AZURE_APP_SERVICE_PUBLISH_PROFILE }}
+          package:        publish/

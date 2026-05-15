@@ -1,0 +1,48 @@
+name: Frontend — Build & Deploy
+
+on:
+  push:
+    branches: [main]
+    paths: [frontend/**]
+  pull_request:
+    branches: [main]
+    paths: [frontend/**]
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npx nuxt typecheck
+
+      - name: Build
+        run: npm run build
+        env:
+          NUXT_PUBLIC_API_BASE_URL:  ${{ secrets.API_BASE_URL }}
+          NUXT_PUBLIC_BLOB_BASE_URL: ${{ secrets.BLOB_BASE_URL }}
+          NUXT_PUBLIC_SITE_URL:      ${{ secrets.SITE_URL }}
+
+      - name: Deploy to Azure Static Web Apps
+        if: github.ref == 'refs/heads/main'
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          app_location: frontend
+          output_location: frontend/.output/public

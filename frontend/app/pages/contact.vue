@@ -1,3 +1,12 @@
+<script setup lang="ts">
+useSeoMeta({
+  title: 'Contact',
+  description: 'Get in touch for commissioned work, exhibitions, and print licensing.',
+  ogTitle: 'Contact · Vital Photography',
+  ogDescription: 'Available for commissioned work, exhibitions, and print licensing.',
+})
+</script>
+
 <template>
   <div class="flex-1 flex flex-col items-center justify-center px-6 py-24 text-center">
     <p class="text-muted font-sans text-xs uppercase tracking-widest mb-6">Get in touch</p>

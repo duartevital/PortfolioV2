@@ -31,8 +31,8 @@ public class AdminPhotosController(AppDbContext db, ImageService images, IStorag
         var (thumb, display) = await images.ResizeAsync(stream, ct);
 
         var id = Guid.NewGuid();
-        var thumbUrl   = await storage.SaveAsync(thumb,   $"{id}-thumb.jpg",   "thumbnails", ct);
-        var displayUrl = await storage.SaveAsync(display, $"{id}-display.jpg",  "display",    ct);
+        var thumbUrl   = await storage.SaveAsync(thumb,   $"{id}-thumb.webp",   "thumbnails", ct);
+        var displayUrl = await storage.SaveAsync(display, $"{id}-display.webp",  "display",    ct);
 
         var maxOrder = await db.Photos.MaxAsync(p => (int?)p.Order) ?? -1;
 
