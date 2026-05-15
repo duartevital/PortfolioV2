@@ -15,10 +15,10 @@ Personal photography portfolio ("Vital Photography") — a dark, moody, masonry-
 ## Monorepo Structure
 
 ```
-/frontend     Nuxt 3 + Vue 3 + TypeScript + Tailwind CSS
+/frontend     Nuxt 4 + Vue 3 + TypeScript + Tailwind CSS
 /backend      ASP.NET Core 8 Web API (C#)
-/infra        Azure config / deployment scripts
 CLAUDE.md     This file
+render.yaml   Render service definition
 .gitignore
 ```
 
@@ -28,10 +28,10 @@ CLAUDE.md     This file
 
 | Layer | Technology |
 |---|---|
-| Frontend | Nuxt 3, Vue 3, TypeScript, Tailwind CSS |
+| Frontend | Nuxt 4, Vue 3, TypeScript, Tailwind CSS |
 | Backend | ASP.NET Core 8 Web API, C# |
-| Database | Azure SQL (prod) · SQLite (local dev) |
-| Image storage | Azure Blob Storage |
+| Database | SQLite (dev + prod, file on Render persistent disk) |
+| Image storage | Local filesystem (Render persistent disk in prod) |
 | Auth | JWT, single-user, no third-party auth service |
 
 ---
@@ -52,7 +52,7 @@ Create `frontend/.env` (never commit):
 
 ```
 NUXT_PUBLIC_API_BASE_URL=http://localhost:5000   # backend API base
-NUXT_PUBLIC_BLOB_BASE_URL=                       # Azure Blob CDN URL (prod)
+NUXT_PUBLIC_SITE_URL=http://localhost:3000       # canonical site URL (for SEO/sitemap)
 ```
 
 ---
@@ -72,16 +72,16 @@ Set via `backend/appsettings.Development.json` or environment variables (env var
 
 | Variable | Description |
 |---|---|
-| `ConnectionStrings__DefaultConnection` | SQLite path for local dev; Azure SQL connection string in prod |
+| `ConnectionStrings__DefaultConnection` | SQLite file path (`Data Source=vital-photography.db` in dev) |
+| `Storage__Root` | Directory for uploaded photos (defaults to `wwwroot/uploads` in dev) |
 | `Jwt__Secret` | Secret key for signing JWTs (min 32 chars) |
 | `Jwt__Issuer` | JWT issuer (e.g. `vital-photography`) |
 | `Jwt__Audience` | JWT audience (e.g. `vital-photography-admin`) |
 | `Jwt__ExpiryMinutes` | Token lifetime in minutes (default 60) |
-| `AzureBlob__ConnectionString` | Azure Storage connection string (prod only) |
-| `AzureBlob__ContainerName` | Blob container name |
 | `Admin__PasswordHash` | Bcrypt hash of the single admin password |
+| `Cors__AllowedOrigins` | Comma-separated allowed origins (e.g. `https://your-app.vercel.app`) |
 
-Local dev uses SQLite; no Azure credentials needed until Phase 5.
+Local dev uses SQLite with no extra credentials needed.
 
 ---
 
@@ -134,91 +134,61 @@ Local dev uses SQLite; no Azure credentials needed until Phase 5.
 | 2 | Public gallery — masonry, filtering, lightbox, lazy loading | ✅ Done |
 | 3 | Admin panel — upload, metadata, resize, reorder, delete | ✅ Done |
 | 4 | Contact & About pages, site-wide nav/footer | ✅ Done |
-| 5 | WebP on upload, CDN headers, SEO, Azure deployment | ✅ Done |
+| 5 | WebP on upload, cache headers, SEO, Render + Vercel deployment | ✅ Done |
 
 ---
 
-## Deployment (free stack)
+## Deployment
 
-| Layer | Service | Cost |
+Two services. That's it.
+
+| | Service | Cost |
 |---|---|---|
 | Frontend | Vercel | Free |
-| Backend API | Fly.io | Free tier (shared VM, 256 MB) |
-| Database | SQLite on Fly volume | Free (1 GB volume) |
-| Image storage + CDN | Cloudflare R2 | Free (10 GB, no egress fees) |
+| Backend + DB + Photos | Render | $0.25/month (1 GB persistent disk) |
 
-### 1 — Cloudflare R2 (image storage)
+Everything — the .NET API, SQLite database, and uploaded photos — runs on a single Render web service backed by a persistent disk. The disk costs $0.25/month and survives redeploys indefinitely.
 
-1. Create a free account at cloudflare.com
-2. R2 → Create bucket → name it `photos` → enable public access
-3. R2 → Manage API tokens → Create token (Object Read & Write on `photos` bucket)
-4. Note: **Account ID**, **Access Key ID**, **Secret Access Key**
-5. R2 → `photos` bucket → Settings → copy the **Public bucket URL** (looks like `https://pub-xxx.r2.dev`)
-
-### 2 — Fly.io (backend + database)
-
-```bash
-# Install CLI (Windows)
-winget install flyio.flyctl
-
-# Login
-fly auth login
-
-# Launch app (run once from /backend — accepts fly.toml, skip deploy for now)
-cd backend
-fly launch --no-deploy
-
-# Create persistent volume for SQLite
-fly volumes create vital_photography_data --size 1 --region mad
-
-# Set all secrets (replace placeholder values)
-fly secrets set \
-  Jwt__Secret="a-random-string-at-least-32-chars-long" \
-  Admin__PasswordHash="<bcrypt hash of your chosen admin password>" \
-  CloudflareR2__AccountId="<from step 1>" \
-  CloudflareR2__AccessKeyId="<from step 1>" \
-  CloudflareR2__SecretAccessKey="<from step 1>" \
-  CloudflareR2__BucketName="photos" \
-  CloudflareR2__PublicUrl="<public bucket URL from step 1>" \
-  Cors__AllowedOrigins="https://your-app.vercel.app"
-
-# First deploy
-fly deploy
-```
-
-To generate the `Admin__PasswordHash`, paste your chosen password into any online bcrypt generator (e.g. bcrypt-generator.com) with cost 11.
-
-### 3 — Vercel (frontend)
+### 1 — Render (backend + SQLite + photos)
 
 1. Push this repo to GitHub
-2. vercel.com → New Project → Import your repo → set **Root Directory** to `frontend`
-3. Add environment variables in Vercel dashboard:
-   - `NUXT_PUBLIC_API_BASE_URL` → your Fly.io API URL (e.g. `https://vital-photography-api.fly.dev`)
-   - `NUXT_PUBLIC_BLOB_BASE_URL` → your R2 public bucket URL
-   - `NUXT_PUBLIC_SITE_URL` → your Vercel deployment URL
-4. Deploy — Vercel auto-deploys on every push to `main` from here on
+2. render.com → New → Web Service → connect your repo
+3. Set **Root Directory** to `backend` (Render will find `backend/Dockerfile` automatically)
+4. In the Render dashboard set these three **secret** environment variables (never commit real values):
 
-### 4 — GitHub Secret for CI
-
-Add one secret to your GitHub repo (Settings → Secrets → Actions):
-
-| Secret | Value |
+| Key | Value |
 |---|---|
-| `FLY_API_TOKEN` | Run `fly tokens create deploy` and paste the output |
+| `Jwt__Secret` | A random string ≥ 32 chars |
+| `Admin__PasswordHash` | Bcrypt hash (cost 11) of your chosen admin password — use bcrypt-generator.com |
+| `Cors__AllowedOrigins` | Your Vercel URL, e.g. `https://vital-photography.vercel.app` |
 
-After this, every push to `main` that touches `backend/` triggers an automatic Fly.io redeploy via `.github/workflows/backend.yml`.
+5. Deploy — Render auto-deploys on every push to `main` that touches `backend/`
+
+The `render.yaml` at the repo root pre-configures everything else (persistent disk, non-secret env vars).
+
+### 2 — Vercel (frontend)
+
+1. vercel.com → New Project → Import your repo → set **Root Directory** to `frontend`
+2. Add environment variables in Vercel dashboard:
+
+| Key | Value |
+|---|---|
+| `NUXT_PUBLIC_API_BASE_URL` | Your Render API URL, e.g. `https://vital-photography-api.onrender.com` |
+| `NUXT_PUBLIC_SITE_URL` | Your Vercel deployment URL |
+
+3. Deploy — Vercel auto-deploys on every push to `main` that touches `frontend/`
 
 ### Image pipeline
 
 - Upload → `ImageService` → WebP 85% quality → 400 px thumbnail + 1800 px display
-- Dev: saved to `wwwroot/uploads/` served by static files middleware with immutable headers
-- Prod: uploaded to Cloudflare R2 → served via R2 public URL with `Cache-Control: immutable`
+- Dev: saved to `wwwroot/uploads/`, served by static files middleware
+- Prod: saved to `/data/uploads/` on the Render persistent disk, served by the same middleware
 
 ### Caching strategy
 
 | Layer | Cache-Control |
 |---|---|
-| Image files (R2/CDN) | `public, max-age=31536000, immutable` |
+| Image files (`/uploads/*`) | `public, max-age=31536000, immutable` |
 | `GET /api/v1/photos` | `public, max-age=60, stale-while-revalidate=300` |
 | Admin routes | No cache (auth-gated) |
 

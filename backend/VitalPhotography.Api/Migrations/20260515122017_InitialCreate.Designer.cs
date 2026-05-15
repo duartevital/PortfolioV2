@@ -11,7 +11,7 @@ using VitalPhotography.Api.Data;
 namespace VitalPhotography.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260515095710_InitialCreate")]
+    [Migration("20260515122017_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />

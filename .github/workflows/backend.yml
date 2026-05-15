@@ -1,4 +1,7 @@
-name: Backend — CI & Deploy
+name: Backend — CI
+
+# Render deploys automatically via its GitHub integration.
+# This workflow just verifies the build so broken code never reaches Render.
 
 on:
   push:
@@ -21,19 +24,3 @@ jobs:
 
       - run: dotnet restore backend/VitalPhotography.sln
       - run: dotnet build   backend/VitalPhotography.sln --no-restore -c Release
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: superfly/flyctl-actions/setup-flyctl@master
-
-      - name: Deploy to Fly.io
-        run: flyctl deploy --remote-only
-        working-directory: backend
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

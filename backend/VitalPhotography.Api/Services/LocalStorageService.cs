@@ -1,10 +1,15 @@
 namespace VitalPhotography.Api.Services;
 
-public class LocalStorageService(IWebHostEnvironment env, IHttpContextAccessor http) : IStorageService
+public class LocalStorageService(IConfiguration config, IHttpContextAccessor http) : IStorageService
 {
+    // In production the Render persistent disk is mounted at /data.
+    // In dev, falls back to wwwroot/uploads (relative to the app).
+    private string UploadsRoot =>
+        config["Storage:Root"] ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
+
     public async Task<string> SaveAsync(Stream data, string fileName, string folder, CancellationToken ct = default)
     {
-        var dir = Path.Combine(env.WebRootPath, "uploads", folder);
+        var dir = Path.Combine(UploadsRoot, folder);
         Directory.CreateDirectory(dir);
 
         var path = Path.Combine(dir, fileName);
@@ -17,9 +22,9 @@ public class LocalStorageService(IWebHostEnvironment env, IHttpContextAccessor h
 
     public Task DeleteAsync(string url, CancellationToken ct = default)
     {
-        var uri = new Uri(url);
-        var relative = uri.AbsolutePath.TrimStart('/');
-        var path = Path.Combine(env.WebRootPath, relative.Replace('/', Path.DirectorySeparatorChar));
+        var uri  = new Uri(url);
+        var rel  = uri.AbsolutePath.TrimStart('/').Substring("uploads/".Length);
+        var path = Path.Combine(UploadsRoot, rel.Replace('/', Path.DirectorySeparatorChar));
         if (File.Exists(path)) File.Delete(path);
         return Task.CompletedTask;
     }

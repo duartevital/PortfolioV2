@@ -10,8 +10,8 @@ FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
 COPY --from=build /app/publish .
 
-# SQLite lives on a Fly persistent volume mounted at /data
-RUN mkdir -p /data
+# /data is mounted as a Render persistent disk — holds SQLite db + uploaded photos
+RUN mkdir -p /data/uploads
 ENV ConnectionStrings__DefaultConnection="Data Source=/data/vital-photography.db"
 ENV ASPNETCORE_URLS="http://+:8080"
 

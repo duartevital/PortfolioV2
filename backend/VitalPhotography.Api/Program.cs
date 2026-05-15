@@ -10,14 +10,11 @@ using VitalPhotography.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Database — SQLite for dev, Azure SQL for prod
+// Database — SQLite everywhere; file path set via connection string
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? "Data Source=vital-photography.db";
 
-if (connectionString.Contains(".db"))
-    builder.Services.AddDbContext<AppDbContext>(o => o.UseSqlite(connectionString));
-else
-    builder.Services.AddDbContext<AppDbContext>(o => o.UseSqlServer(connectionString));
+builder.Services.AddDbContext<AppDbContext>(o => o.UseSqlite(connectionString));
 
 // JWT Authentication
 var jwtSecret = builder.Configuration["Jwt:Secret"]
@@ -44,13 +41,8 @@ builder.Services.AddControllers();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<ImageService>();
 
-// Storage — R2 > Azure Blob > local filesystem (first match wins)
-if (!string.IsNullOrEmpty(builder.Configuration["CloudflareR2:AccountId"]))
-    builder.Services.AddScoped<IStorageService, CloudflareR2StorageService>();
-else if (!string.IsNullOrEmpty(builder.Configuration["AzureBlob:ConnectionString"]))
-    builder.Services.AddScoped<IStorageService, AzureBlobStorageService>();
-else
-    builder.Services.AddScoped<IStorageService, LocalStorageService>();
+// Storage — local filesystem (photos stored on the Render persistent disk)
+builder.Services.AddScoped<IStorageService, LocalStorageService>();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -73,8 +65,9 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-// Serve local uploads with long-lived cache headers (dev only; prod uses Azure CDN)
-var uploadsPath = Path.Combine(builder.Environment.WebRootPath, "uploads");
+// Serve uploaded photos — from /data/uploads in prod (Render disk) or wwwroot/uploads in dev
+var uploadsPath = app.Configuration["Storage:Root"]
+    ?? Path.Combine(builder.Environment.WebRootPath, "uploads");
 Directory.CreateDirectory(uploadsPath);
 app.UseStaticFiles(new StaticFileOptions
 {
