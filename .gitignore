@@ -1,0 +1,82 @@
+# ========================
+# Node / Frontend
+# ========================
+node_modules/
+.nuxt/
+.output/
+dist/
+.cache/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Nuxt / Vite
+.nitro/
+.vinxi/
+
+# Env files
+.env
+.env.*
+!.env.example
+
+# ========================
+# .NET / Backend
+# ========================
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.DotSettings.user
+
+# Publish output
+publish/
+
+# SQLite local dev db
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# Secrets / local config
+appsettings.Development.json
+appsettings.Local.json
+secrets.json
+
+# ========================
+# Azure / Infra
+# ========================
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+
+# Azure Functions
+local.settings.json
+
+# ========================
+# IDE / OS
+# ========================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# JetBrains Rider
+*.DotSettings
+
+# ========================
+# Misc
+# ========================
+*.bak
+*.tmp
+coverage/
+TestResults/
